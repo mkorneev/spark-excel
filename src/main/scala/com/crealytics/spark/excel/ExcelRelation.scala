@@ -29,7 +29,7 @@ extends BaseRelation with TableScan with PrunedScan {
   val sheet = findSheet(workbook, sheetName)
   val headers = sheet.getRow(0).cellIterator().asScala.to[Vector]
   override val schema: StructType = inferSchema
-  val dataFormatter = new DataFormatter();
+  val dataFormatter = new DataFormatter()
 
   private def findSheet(workBook: Workbook, sheetName: Option[String]): Sheet = {
     sheetName.map { sn =>
@@ -45,16 +45,12 @@ extends BaseRelation with TableScan with PrunedScan {
       val columnNameRegex = s"(.*?)(_color)?".r
       val columnNameRegex(columnName, isColor) = c
       val columnIndex = schema.indexWhere(_.name == columnName)
+      val dataFormatter = new DataFormatter()
+      val formulaEvaluator = workbook.getCreationHelper.createFormulaEvaluator
 
       val cellExtractor: Cell => Any = if (isColor == null) {
         { cell: Cell =>
-          val value = cell.getCellType match {
-            case Cell.CELL_TYPE_NUMERIC => cell.getNumericCellValue.toString
-            case Cell.CELL_TYPE_BOOLEAN => cell.getBooleanCellValue.toString
-            case Cell.CELL_TYPE_STRING => cell.getStringCellValue.toString
-            case Cell.CELL_TYPE_BLANK => null
-            case t => throw new RuntimeException(s"Unknown cell type $t for $cell")
-          }
+          val value = dataFormatter.formatCellValue(cell, formulaEvaluator)
           castTo(value, schema(columnIndex).dataType)
         }
       } else {
