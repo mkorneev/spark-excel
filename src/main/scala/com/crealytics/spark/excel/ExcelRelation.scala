@@ -17,6 +17,7 @@ import scala.util.Try
 case class ExcelRelation(
   location: String,
   sheetName: Option[String],
+  skipRows: Option[Int],
   useHeader: Boolean,
   treatEmptyValuesAsNulls: Boolean,
   inferSheetSchema: Boolean,
@@ -27,14 +28,14 @@ case class ExcelRelation(
 extends BaseRelation with TableScan with PrunedScan {
   val workbook = WorkbookFactory.create(new FileInputStream(location))
   val sheet = findSheet(workbook, sheetName)
-  val headers = sheet.getRow(0).cellIterator().asScala.to[Vector]
+  val headers = sheet.getRow(skipRows.getOrElse(0)).cellIterator().asScala.to[Vector]
   override val schema: StructType = inferSchema
   val dataFormatter = new DataFormatter()
 
   private def findSheet(workBook: Workbook, sheetName: Option[String]): Sheet = {
     sheetName.map { sn =>
       Option(workBook.getSheet(sn)).getOrElse(
-          throw new IllegalArgumentException(s"Unknow sheet $sn")
+          throw new IllegalArgumentException(s"Unknown sheet $sn")
         )
     }.getOrElse(workBook.sheetIterator.next)
   }
@@ -102,7 +103,7 @@ extends BaseRelation with TableScan with PrunedScan {
     parallelize(sheet.rowIterator().asScala.toSeq)
   }
 
-  private def dataRows = sheet.rowIterator.asScala.drop(if (useHeader) 1 else 0)
+  private def dataRows = sheet.rowIterator.asScala.drop(skipRows.getOrElse(0) + (if (useHeader) 1 else 0))
   private def parallelize[T: scala.reflect.ClassTag](seq: Seq[T]): RDD[T] = sqlContext.sparkContext.parallelize(seq)
   private def inferSchema(): StructType = {
     if (this.userSchema != null) {

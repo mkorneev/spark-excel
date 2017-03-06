@@ -3,6 +3,8 @@ package com.crealytics.spark.excel
 import org.apache.spark.sql.SQLContext
 import org.apache.spark.sql.sources._
 
+import scala.util.Try
+
 
 class DefaultSource
   extends RelationProvider {
@@ -16,6 +18,7 @@ class DefaultSource
 
     val location = checkParameter(parameters, "location")
     val sheetName = parameters.get("sheetName")
+    val skipRows = parameters.get("skipRows").flatMap(s => Try(s.toInt).toOption)
     val useHeader = checkParameter(parameters, "useHeader").toBoolean
     val treatEmptyValuesAsNulls = checkParameter(parameters, "treatEmptyValuesAsNulls").toBoolean
     val userSchema = null // checkParameter(parameters, "userSchema")
@@ -24,6 +27,7 @@ class DefaultSource
     ExcelRelation(
       location,
       sheetName,
+      skipRows,
       useHeader,
       treatEmptyValuesAsNulls,
       inferSchema,
